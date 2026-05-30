@@ -13,8 +13,11 @@ export function isDefaultTitle(name: string): boolean {
   return DEFAULT_TITLE_RE.test(name.trim());
 }
 
-/** Refresh seconds-before-expiry buffer so we never use a token mid-expiry. */
-const REFRESH_BUFFER_SECONDS = 60;
+/**
+ * Refresh anything expiring within this many seconds. Strava itself returns a
+ * fresh token if the current one expires in <= 1 hour, so 5 min is comfortable.
+ */
+const REFRESH_BUFFER_SECONDS = 300;
 
 export interface RenamerDeps {
   store: TokenStore;

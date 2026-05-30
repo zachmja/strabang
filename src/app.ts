@@ -77,12 +77,15 @@ export function createApp(deps: AppDeps): Express {
     try {
       const token = await strava.exchangeToken(code);
       if (!token.athlete) throw new Error("token response missing athlete");
+      // Strava returns the actually-granted scope (the athlete may have
+      // unchecked one of the requested scopes on the authorize page); store
+      // that, not what we asked for.
       await store.set({
         athleteId: token.athlete.id,
         accessToken: token.access_token,
         refreshToken: token.refresh_token,
         expiresAt: token.expires_at,
-        scope: config.strava.scope,
+        scope: token.scope ?? config.strava.scope,
         username: token.athlete.username ?? null,
       });
       const name = token.athlete.firstname ?? "athlete";
@@ -112,16 +115,32 @@ export function createApp(deps: AppDeps): Express {
   });
 
   // Webhook event delivery. Must ack within ~2s, so we respond first and
-  // process the rename afterwards.
+  // process the event afterwards.
   app.post("/webhook", (req: Request, res: Response) => {
     res.sendStatus(200);
     const event = req.body as StravaWebhookEvent;
-    if (event?.object_type === "activity" && event?.aspect_type === "create") {
+    if (!event) return;
+
+    if (event.object_type === "activity" && event.aspect_type === "create") {
       handleActivityCreate(
         { store, strava, generate, renameAll: config.renameAll, log },
         event.owner_id,
         event.object_id,
       ).catch((err) => log(`rename failed: ${(err as Error).message}`));
+      return;
+    }
+
+    // Deauthorization: the athlete revoked our app. Tokens are now dead;
+    // drop them so we don't keep trying to refresh.
+    if (
+      event.object_type === "athlete" &&
+      event.aspect_type === "update" &&
+      event.updates?.authorized === "false"
+    ) {
+      store
+        .delete(event.owner_id)
+        .then(() => log(`deauthorized athlete ${event.owner_id}; tokens dropped`))
+        .catch((err) => log(`deauth cleanup failed: ${(err as Error).message}`));
     }
   });
 

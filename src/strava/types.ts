@@ -1,4 +1,8 @@
-/** Token bundle returned by Strava's OAuth token endpoint. */
+/**
+ * Token bundle returned by Strava's OAuth token endpoint. The initial
+ * authorization_code exchange includes `athlete` and `scope`; refresh
+ * responses do not.
+ */
 export interface StravaTokenResponse {
   token_type: string;
   expires_at: number; // unix seconds
@@ -6,6 +10,8 @@ export interface StravaTokenResponse {
   refresh_token: string;
   access_token: string;
   athlete?: StravaAthlete;
+  /** Space-delimited list of scopes the athlete actually granted. */
+  scope?: string;
 }
 
 export interface StravaAthlete {

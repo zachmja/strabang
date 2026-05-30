@@ -15,6 +15,7 @@ export interface TokenRecord {
 export interface TokenStore {
   get(athleteId: number): Promise<TokenRecord | undefined>;
   set(record: TokenRecord): Promise<void>;
+  delete(athleteId: number): Promise<void>;
   all(): Promise<TokenRecord[]>;
 }
 
@@ -28,6 +29,10 @@ export class MemoryTokenStore implements TokenStore {
 
   async set(record: TokenRecord): Promise<void> {
     this.map.set(record.athleteId, record);
+  }
+
+  async delete(athleteId: number): Promise<void> {
+    this.map.delete(athleteId);
   }
 
   async all(): Promise<TokenRecord[]> {
@@ -66,6 +71,12 @@ export class FileTokenStore implements TokenStore {
   async set(record: TokenRecord): Promise<void> {
     const data = this.read();
     data[String(record.athleteId)] = record;
+    this.write(data);
+  }
+
+  async delete(athleteId: number): Promise<void> {
+    const data = this.read();
+    delete data[String(athleteId)];
     this.write(data);
   }
 

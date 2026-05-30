@@ -109,4 +109,12 @@ describe("handleActivityCreate", () => {
     expect(stored?.accessToken).toBe("new-access");
     expect(stored?.refreshToken).toBe("new-refresh");
   });
+
+  it("refreshes proactively when the token is within the 5-min buffer", async () => {
+    const store = new MemoryTokenStore();
+    await store.set(makeRecord({ expiresAt: NOW + 60 })); // expires in 1 min
+    const strava = makeStrava("Morning Run");
+    await handleActivityCreate(deps(store, strava), 1, 99);
+    expect(strava.refreshToken).toHaveBeenCalled();
+  });
 });
