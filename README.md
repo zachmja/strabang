@@ -129,3 +129,26 @@ test/                   vitest unit tests
   deployments swap `FileTokenStore` for a database-backed `TokenStore`.
 - The webhook handler responds `200` before doing work, to stay within Strava's
   ~2s ack window.
+
+## Strava API Agreement compliance
+
+If you're going to invite anyone other than yourself to use a strabang
+instance, you're operating under the
+[Strava API Agreement](https://www.strava.com/legal/api). The clauses most
+relevant to strabang and how this repo handles them:
+
+| Clause | How strabang handles it |
+| --- | --- |
+| No AI/ML training on Strava data | The generator is templated/RNG, no external model calls. |
+| 7-day cache limit on Strava Data | We don't cache — fetch the activity, decide, rename, discard. |
+| Delete data on deauthorization | The webhook handler drops tokens on the `authorized=false` event. |
+| HTTPS for Strava data in transit | All API calls hit `https://www.strava.com`; you must serve `/webhook` over HTTPS too. |
+| Display only the requesting user's own data | The post-connect page shows only the connected athlete's first name. |
+| Brand Guidelines | We use the official "Connect with Strava" button and "Powered by Strava" attribution. |
+| Privacy policy required | See [PRIVACY.md](./PRIVACY.md). Set a contact address before inviting users. |
+| Trademark restrictions | The app name "Strabang" arguably echoes the Strava mark; if Strava ever objects, rename it. |
+| Token storage security | Default JSON store relies on filesystem perms; swap for an encrypted DB for multi-user deployments. |
+
+## License
+
+[MIT](./LICENSE).

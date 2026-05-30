@@ -1,15 +1,15 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 
-/** One athlete's stored credentials. */
+/** One athlete's stored credentials. Deliberately minimal — no profile PII. */
 export interface TokenRecord {
   athleteId: number;
   accessToken: string;
   refreshToken: string;
   /** Unix seconds at which the access token expires. */
   expiresAt: number;
+  /** Space-delimited scopes actually granted by the athlete. */
   scope: string;
-  username?: string | null;
 }
 
 export interface TokenStore {

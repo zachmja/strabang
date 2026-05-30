@@ -14,6 +14,14 @@ export interface AppDeps {
   log?: (msg: string) => void;
 }
 
+// Official Strava brand assets (hosted by Strava). Required by their Brand
+// Guidelines for any "connect" entry point and as attribution wherever Strava
+// data is shown.
+const STRAVA_CONNECT_BTN =
+  "https://developers.strava.com/images/btn_strava_connectwith_orange.png";
+const STRAVA_POWERED_BY =
+  "https://developers.strava.com/images/api_logo_pwrdBy_strava_horiz_light.png";
+
 const page = (title: string, body: string) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,9 +30,19 @@ const page = (title: string, body: string) => `<!doctype html>
   body{font-family:system-ui,-apple-system,sans-serif;max-width:42rem;margin:4rem auto;padding:0 1.5rem;line-height:1.6;color:#111}
   h1{font-size:2rem;margin-bottom:.25rem}
   .sub{color:#666;margin-top:0}
-  a.btn{display:inline-block;background:#fc4c02;color:#fff;text-decoration:none;padding:.65rem 1.1rem;border-radius:.5rem;font-weight:600;margin-top:1rem}
+  .connect{display:inline-block;margin-top:1rem}
+  .connect img{height:48px;display:block}
+  footer{margin-top:3rem;padding-top:1.5rem;border-top:1px solid #eee;color:#666;font-size:.875rem}
+  footer img{height:30px;vertical-align:middle;margin-left:.5rem}
   code{background:#f3f3f3;padding:.1rem .35rem;border-radius:.25rem}
-</style></head><body>${body}</body></html>`;
+</style></head><body>${body}
+<footer>
+  Powered by
+  <a href="https://www.strava.com" rel="noopener">
+    <img src="${STRAVA_POWERED_BY}" alt="Strava">
+  </a>
+</footer>
+</body></html>`;
 
 export function createApp(deps: AppDeps): Express {
   const { config, strava, store, generate } = deps;
@@ -45,7 +63,9 @@ export function createApp(deps: AppDeps): Express {
          <p>Connect Strava and every new run/ride gets a freshly generated line
          like:</p>
          <blockquote><em>"${escapeHtml(sample)}"</em></blockquote>
-         <a class="btn" href="/connect">Connect with Strava</a>`,
+         <a class="connect" href="/connect">
+           <img src="${STRAVA_CONNECT_BTN}" alt="Connect with Strava">
+         </a>`,
       ),
     );
   });
@@ -77,18 +97,19 @@ export function createApp(deps: AppDeps): Express {
     try {
       const token = await strava.exchangeToken(code);
       if (!token.athlete) throw new Error("token response missing athlete");
+      // Capture the first name before discarding the athlete object — we
+      // greet with it once but deliberately don't persist any profile PII.
       // Strava returns the actually-granted scope (the athlete may have
       // unchecked one of the requested scopes on the authorize page); store
       // that, not what we asked for.
+      const name = token.athlete.firstname ?? "athlete";
       await store.set({
         athleteId: token.athlete.id,
         accessToken: token.access_token,
         refreshToken: token.refresh_token,
         expiresAt: token.expires_at,
         scope: token.scope ?? config.strava.scope,
-        username: token.athlete.username ?? null,
       });
-      const name = token.athlete.firstname ?? "athlete";
       res.send(
         page(
           "Connected",
