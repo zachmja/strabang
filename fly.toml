@@ -1,0 +1,40 @@
+# Fly.io configuration for strabang.
+#
+# App names are globally unique. If "strabang" is taken, change `app` below
+# AND set BASE_URL accordingly (e.g. https://strabang-<your-suffix>.fly.dev).
+#
+# Webhooks require always-on machines — DO NOT enable auto_stop_machines.
+
+app = "strabang"
+primary_region = "iad"   # Ashburn, VA. Change to your nearest region.
+
+[build]
+
+[env]
+  PORT = "3000"
+  TOKEN_STORE_PATH = "/data/tokens.json"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/healthz"
+
+# Persistent volume for the JSON token store.
+[mounts]
+  source = "strabang_data"
+  destination = "/data"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256

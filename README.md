@@ -130,6 +130,93 @@ test/                   vitest unit tests
 - The webhook handler responds `200` before doing work, to stay within Strava's
   ~2s ack window.
 
+## Deploying to Fly.io
+
+The repo ships a `Dockerfile` and `fly.toml` ready for Fly.io. The setup uses
+one always-on shared-CPU machine plus a small persistent volume for the JSON
+token store. Total runtime is well under Fly's $5/month base credit for a
+solo user.
+
+### 1. Install flyctl and sign in
+
+```bash
+brew install flyctl   # or: curl -L https://fly.io/install.sh | sh
+fly auth login
+```
+
+### 2. Pick an app name and edit fly.toml
+
+App names are globally unique. Edit the `app =` line in `fly.toml` if
+`strabang` is taken (e.g. `strabang-zach`). Optionally change `primary_region`
+to one near you (`fly platform regions` for the list).
+
+### 3. Create the app and the volume
+
+```bash
+fly apps create <your-app-name>
+fly volumes create strabang_data --size 1 --region <region> --app <your-app-name>
+```
+
+The volume name must match `[mounts].source` in `fly.toml`.
+
+### 4. Set the secrets
+
+```bash
+fly secrets set --app <your-app-name> \
+  STRAVA_CLIENT_ID=... \
+  STRAVA_CLIENT_SECRET=... \
+  STRAVA_WEBHOOK_VERIFY_TOKEN="$(openssl rand -hex 16)" \
+  WEBHOOK_PATH_SECRET="$(openssl rand -hex 16)" \
+  BASE_URL="https://<your-app-name>.fly.dev"
+```
+
+(`BASE_URL` doesn't have to be set as a secret — you can put it in `[env]`
+in `fly.toml` instead — but secrets is fine and keeps the toml clean.)
+
+### 5. Deploy
+
+```bash
+fly deploy --app <your-app-name>
+```
+
+After deploy, hit `https://<your-app-name>.fly.dev/healthz` — should return
+`{"ok": true}`.
+
+### 6. Update Strava and subscribe to webhooks
+
+In <https://www.strava.com/settings/api>, set **Authorization Callback Domain**
+to your Fly host (e.g. `your-app-name.fly.dev`, host only — no `https://`).
+
+Then create the push subscription. The `manage-webhook` script runs from your
+local machine and just needs the same env vars in your local `.env`:
+
+```bash
+# in your local .env
+STRAVA_CLIENT_ID=...
+STRAVA_CLIENT_SECRET=...
+STRAVA_WEBHOOK_VERIFY_TOKEN=<same as the Fly secret>
+WEBHOOK_PATH_SECRET=<same as the Fly secret>
+BASE_URL=https://<your-app-name>.fly.dev
+
+npm run webhook -- create
+```
+
+Strava will hit `https://<your-app-name>.fly.dev/webhook/<secret>` to validate
+the callback. If you see `{ "id": <n> }` in the script's output, you're live.
+
+### 7. Connect your Strava account
+
+Open `https://<your-app-name>.fly.dev/connect`, authorize, then log an
+activity. It should be renamed within seconds.
+
+### Logs and ops
+
+```bash
+fly logs --app <your-app-name>       # tail logs
+fly ssh console --app <your-app-name> # shell in
+fly status --app <your-app-name>
+```
+
 ## Strava API Agreement compliance
 
 If you're going to invite anyone other than yourself to use a strabang
