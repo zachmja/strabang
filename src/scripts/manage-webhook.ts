@@ -21,7 +21,7 @@ async function main(): Promise<void> {
   if (action === "create") {
     const body = new URLSearchParams({
       ...auth,
-      callback_url: `${config.baseUrl}/webhook`,
+      callback_url: `${config.baseUrl}${config.webhook.path}`,
       verify_token: config.webhook.verifyToken,
     });
     const res = await fetch(base, { method: "POST", body });

@@ -12,6 +12,12 @@ export interface Config {
   webhook: {
     /** Token echoed back during the GET subscription handshake. */
     verifyToken: string;
+    /**
+     * Path the webhook lives at (e.g. "/webhook" or "/webhook/<secret>").
+     * Strava doesn't sign event POSTs, so a secret path segment is the
+     * cheapest way to keep random scanners from forging events.
+     */
+    path: string;
   };
   /** Path to the JSON token store. */
   tokenStorePath: string;
@@ -47,6 +53,9 @@ export function loadConfig(): Config {
     },
     webhook: {
       verifyToken: process.env.STRAVA_WEBHOOK_VERIFY_TOKEN ?? "strabang",
+      path: process.env.WEBHOOK_PATH_SECRET
+        ? `/webhook/${process.env.WEBHOOK_PATH_SECRET}`
+        : "/webhook",
     },
     tokenStorePath: process.env.TOKEN_STORE_PATH ?? "data/tokens.json",
     renameAll: process.env.RENAME_ALL === "true",

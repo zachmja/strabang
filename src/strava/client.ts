@@ -9,6 +9,12 @@ export interface StravaClientOptions {
   clientSecret: string;
   /** Override fetch (mainly for tests). Defaults to global fetch. */
   fetchImpl?: typeof fetch;
+  /** Override the sleep function (mainly for tests). */
+  sleep?: (ms: number) => Promise<void>;
+  /** Max number of retries on 429. Defaults to 1. */
+  maxRetries?: number;
+  /** Cap on Retry-After honored (ms). Defaults to 60s. */
+  maxBackoffMs?: number;
 }
 
 /**
@@ -21,11 +27,42 @@ export class StravaClient {
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly fetchImpl: typeof fetch;
+  private readonly sleep: (ms: number) => Promise<void>;
+  private readonly maxRetries: number;
+  private readonly maxBackoffMs: number;
 
   constructor(options: StravaClientOptions) {
     this.clientId = options.clientId;
     this.clientSecret = options.clientSecret;
     this.fetchImpl = options.fetchImpl ?? fetch;
+    this.sleep =
+      options.sleep ??
+      ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+    this.maxRetries = options.maxRetries ?? 1;
+    this.maxBackoffMs = options.maxBackoffMs ?? 60_000;
+  }
+
+  /**
+   * Issue an HTTP request, retrying once on 429 honoring Retry-After. Bulk
+   * activity imports (e.g. a Garmin history sync) can trip Strava's
+   * 100 req / 15 min limit; a single backoff is enough to ride out the window.
+   */
+  private async fetchWithRetry(
+    url: string,
+    init?: RequestInit,
+  ): Promise<Response> {
+    for (let attempt = 0; ; attempt++) {
+      const res = await this.fetchImpl(url, init);
+      if (res.status !== 429 || attempt >= this.maxRetries) return res;
+      const retryAfter = Number(res.headers.get("Retry-After"));
+      const waitMs = Math.min(
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? retryAfter * 1000
+          : 2000,
+        this.maxBackoffMs,
+      );
+      await this.sleep(waitMs);
+    }
   }
 
   /** Build the URL a user is redirected to in order to authorize the app. */
@@ -65,7 +102,7 @@ export class StravaClient {
     activityId: number,
     accessToken: string,
   ): Promise<StravaActivity> {
-    const res = await this.fetchImpl(
+    const res = await this.fetchWithRetry(
       `${STRAVA_API_BASE}/activities/${activityId}`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
@@ -83,7 +120,7 @@ export class StravaClient {
     accessToken: string,
     update: { name?: string; description?: string },
   ): Promise<StravaActivity> {
-    const res = await this.fetchImpl(
+    const res = await this.fetchWithRetry(
       `${STRAVA_API_BASE}/activities/${activityId}`,
       {
         method: "PUT",
@@ -110,7 +147,7 @@ export class StravaClient {
       client_secret: this.clientSecret,
       ...extra,
     });
-    const res = await this.fetchImpl(`${STRAVA_OAUTH_BASE}/token`, {
+    const res = await this.fetchWithRetry(`${STRAVA_OAUTH_BASE}/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,

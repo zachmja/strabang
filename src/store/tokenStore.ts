@@ -1,4 +1,10 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  renameSync,
+} from "node:fs";
 import { dirname } from "node:path";
 
 /** One athlete's stored credentials. Deliberately minimal — no profile PII. */
@@ -61,7 +67,11 @@ export class FileTokenStore implements TokenStore {
 
   private write(data: Record<string, TokenRecord>): void {
     mkdirSync(dirname(this.path), { recursive: true });
-    writeFileSync(this.path, JSON.stringify(data, null, 2));
+    // Write to a tmp file then rename so a crash mid-write can't leave a
+    // partial JSON file on disk.
+    const tmp = `${this.path}.${process.pid}.tmp`;
+    writeFileSync(tmp, JSON.stringify(data, null, 2));
+    renameSync(tmp, this.path);
   }
 
   async get(athleteId: number): Promise<TokenRecord | undefined> {

@@ -75,5 +75,4 @@ You can at any time:
 
 ## Contact
 
-Questions or deletion requests: _set this to your contact address before
-inviting other users._
+Questions or deletion requests: <zach@zachalden.com>

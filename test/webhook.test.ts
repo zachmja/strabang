@@ -6,7 +6,7 @@ import { MemoryTokenStore } from "../src/store/tokenStore";
 import type { StravaClient } from "../src/strava/client";
 import type { Config } from "../src/config";
 
-function makeConfig(): Config {
+function makeConfig(overrides: Partial<Config["webhook"]> = {}): Config {
   return {
     port: 0,
     baseUrl: "http://localhost",
@@ -15,7 +15,7 @@ function makeConfig(): Config {
       clientSecret: "csec",
       scope: "activity:read_all,activity:write",
     },
-    webhook: { verifyToken: "verify-me" },
+    webhook: { verifyToken: "verify-me", path: "/webhook", ...overrides },
     tokenStorePath: "/tmp/strabang-test.json",
     renameAll: false,
   };
@@ -70,6 +70,29 @@ describe("webhook routes", () => {
         `${url}/webhook?hub.mode=subscribe&hub.verify_token=WRONG&hub.challenge=abc`,
       );
       expect(res.status).toBe(403);
+    } finally {
+      await close();
+    }
+  });
+
+  it("serves on a secret path when one is configured, and 404s on /webhook", async () => {
+    const app = createApp({
+      config: makeConfig({ path: "/webhook/s3cret" }),
+      strava: {} as StravaClient,
+      store: new MemoryTokenStore(),
+      generate: () => "x",
+      log: () => {},
+    });
+    const { url, close } = await listen(app);
+    try {
+      const okRes = await fetch(
+        `${url}/webhook/s3cret?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=z`,
+      );
+      expect(okRes.status).toBe(200);
+      const missRes = await fetch(
+        `${url}/webhook?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=z`,
+      );
+      expect(missRes.status).toBe(404);
     } finally {
       await close();
     }

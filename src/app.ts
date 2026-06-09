@@ -12,6 +12,8 @@ export interface AppDeps {
   store: TokenStore;
   generate: () => string;
   log?: (msg: string) => void;
+  /** Injectable clock (ms epoch); for tests. */
+  now?: () => number;
 }
 
 // Official Strava brand assets (hosted by Strava). Required by their Brand
@@ -44,14 +46,33 @@ const page = (title: string, body: string) => `<!doctype html>
 </footer>
 </body></html>`;
 
+/** OAuth state nonces are valid for this long before being swept. */
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+/** Cap to keep the in-memory set bounded even under abuse. */
+const OAUTH_STATE_MAX = 10_000;
+
 export function createApp(deps: AppDeps): Express {
   const { config, strava, store, generate } = deps;
   const log = deps.log ?? ((m: string) => console.log(m));
+  const now = deps.now ?? (() => Date.now());
   const app = express();
   app.use(express.json());
 
-  // Short-lived OAuth state nonces (CSRF protection on the redirect).
-  const pendingStates = new Set<string>();
+  // OAuth state nonces (CSRF protection on the redirect). Keyed by nonce,
+  // value is the expiry timestamp. Swept lazily on each /connect.
+  const pendingStates = new Map<string, number>();
+  function sweepStates(): void {
+    const cutoff = now();
+    for (const [k, exp] of pendingStates) {
+      if (exp <= cutoff) pendingStates.delete(k);
+    }
+    // Hard cap: if still over budget after sweeping, drop oldest insertions.
+    while (pendingStates.size > OAUTH_STATE_MAX) {
+      const first = pendingStates.keys().next().value;
+      if (first === undefined) break;
+      pendingStates.delete(first);
+    }
+  }
 
   app.get("/", (_req: Request, res: Response) => {
     const sample = generate();
@@ -71,8 +92,9 @@ export function createApp(deps: AppDeps): Express {
   });
 
   app.get("/connect", (_req: Request, res: Response) => {
+    sweepStates();
     const state = randomBytes(16).toString("hex");
-    pendingStates.add(state);
+    pendingStates.set(state, now() + OAUTH_STATE_TTL_MS);
     const url = strava.authorizeUrl({
       redirectUri: `${config.baseUrl}/auth/callback`,
       scope: config.strava.scope,
@@ -86,8 +108,10 @@ export function createApp(deps: AppDeps): Express {
     if (error) {
       return res.status(400).send(page("Denied", `<h1>Authorization denied</h1>`));
     }
-    if (!state || !pendingStates.has(state)) {
-      return res.status(400).send(page("Error", `<h1>Invalid state</h1>`));
+    const expiresAt = state ? pendingStates.get(state) : undefined;
+    if (!state || expiresAt === undefined || expiresAt <= now()) {
+      pendingStates.delete(state ?? "");
+      return res.status(400).send(page("Error", `<h1>Invalid or expired state</h1>`));
     }
     pendingStates.delete(state);
     if (!code) {
@@ -125,7 +149,7 @@ export function createApp(deps: AppDeps): Express {
   });
 
   // Webhook subscription validation handshake.
-  app.get("/webhook", (req: Request, res: Response) => {
+  app.get(config.webhook.path, (req: Request, res: Response) => {
     const mode = req.query["hub.mode"];
     const token = req.query["hub.verify_token"];
     const challenge = req.query["hub.challenge"];
@@ -137,7 +161,7 @@ export function createApp(deps: AppDeps): Express {
 
   // Webhook event delivery. Must ack within ~2s, so we respond first and
   // process the event afterwards.
-  app.post("/webhook", (req: Request, res: Response) => {
+  app.post(config.webhook.path, (req: Request, res: Response) => {
     res.sendStatus(200);
     const event = req.body as StravaWebhookEvent;
     if (!event) return;
