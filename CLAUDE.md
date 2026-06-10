@@ -93,7 +93,8 @@ test/                   Vitest; mock StravaClient via plain objects + vi.fn()
   through silently (won't be renamed — safe failure direction).
 - Webhook POSTs are unauthenticated by design (Strava doesn't sign);
   mitigation is the optional `WEBHOOK_PATH_SECRET` path segment.
-- Dockerfile/fly.toml exist but have never been built/deployed for real
-  (no Docker daemon in the dev sandbox); first `fly deploy` is unverified.
-- The end-to-end loop against the real Strava API has never been run —
-  awaiting API app credentials (signup in progress as of 2026-06-09).
+- Deployed to Fly.io as app `strabang` (https://strabang.backroomslabs.com,
+  DNS on Cloudflare, volume `strabang_data` for the token store). The
+  end-to-end loop (OAuth -> webhook -> rename) was verified in production
+  on 2026-06-10. Webhook subscription is registered against the
+  WEBHOOK_PATH_SECRET path; secrets live in Fly, mirrored in local .env.
