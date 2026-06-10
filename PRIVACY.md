@@ -37,6 +37,10 @@ location, splits, kudos, comments, segment efforts, or anything else from
 the Strava response. Your first name is shown once on the post-connect
 greeting page and then thrown away.
 
+We also keep two **aggregate counters** (total renames performed, total
+connects) as plain integers. They are not linked to any athlete and contain
+no personal data.
+
 ## What we do not do
 
 - We do **not** share any data with third parties.

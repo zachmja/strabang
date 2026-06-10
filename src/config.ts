@@ -21,6 +21,8 @@ export interface Config {
   };
   /** Path to the JSON token store. */
   tokenStorePath: string;
+  /** Path to the JSON aggregate-stats store (anonymous counters only). */
+  statsPath: string;
   /** If true, rename every new activity. If false, only Strava's default titles. */
   renameAll: boolean;
   /**
@@ -64,6 +66,7 @@ export function loadConfig(): Config {
         : "/webhook",
     },
     tokenStorePath: process.env.TOKEN_STORE_PATH ?? "data/tokens.json",
+    statsPath: process.env.STATS_PATH ?? "data/stats.json",
     renameAll: process.env.RENAME_ALL === "true",
     lyricsExplicit: process.env.LYRICS_EXPLICIT === "true",
   };

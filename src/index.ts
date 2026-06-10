@@ -1,6 +1,7 @@
 import { loadConfig } from "./config";
 import { StravaClient } from "./strava/client";
 import { FileTokenStore } from "./store/tokenStore";
+import { FileStatsStore } from "./store/statsStore";
 import { generateLyric } from "./lyrics/generator";
 import { createApp } from "./app";
 
@@ -11,10 +12,12 @@ function main(): void {
     clientSecret: config.strava.clientSecret,
   });
   const store = new FileTokenStore(config.tokenStorePath);
+  const stats = new FileStatsStore(config.statsPath);
   const app = createApp({
     config,
     strava,
     store,
+    stats,
     generate: () => generateLyric({ explicit: config.lyricsExplicit }),
   });
 

@@ -17,7 +17,9 @@ function makeConfig(): Config {
     },
     webhook: { verifyToken: "v", path: "/webhook" },
     tokenStorePath: "/tmp/strabang-test.json",
+    statsPath: "/tmp/strabang-stats-test.json",
     renameAll: false,
+    lyricsExplicit: false,
   };
 }
 

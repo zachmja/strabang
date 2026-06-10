@@ -17,7 +17,9 @@ function makeConfig(overrides: Partial<Config["webhook"]> = {}): Config {
     },
     webhook: { verifyToken: "verify-me", path: "/webhook", ...overrides },
     tokenStorePath: "/tmp/strabang-test.json",
+    statsPath: "/tmp/strabang-stats-test.json",
     renameAll: false,
+    lyricsExplicit: false,
   };
 }
 

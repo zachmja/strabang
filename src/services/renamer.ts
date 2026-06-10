@@ -1,5 +1,6 @@
 import type { StravaClient } from "../strava/client";
 import type { TokenRecord, TokenStore } from "../store/tokenStore";
+import type { StatsStore } from "../store/statsStore";
 
 /**
  * Strava's auto-generated titles look like "Morning Run", "Lunch Ride",
@@ -26,6 +27,8 @@ export interface RenamerDeps {
   renameAll: boolean;
   now?: () => number; // unix seconds; injectable for tests
   log?: (msg: string) => void;
+  /** Aggregate counters; a failed increment never fails the rename. */
+  stats?: StatsStore;
 }
 
 export type RenameOutcome =
@@ -78,5 +81,10 @@ export async function handleActivityCreate(
   const name = deps.generate();
   await deps.strava.updateActivity(activityId, record.accessToken, { name });
   log(`renamed activity ${activityId} -> "${name}"`);
+  if (deps.stats) {
+    await deps.stats
+      .increment("totalRenames")
+      .catch((err) => log(`stats increment failed: ${(err as Error).message}`));
+  }
   return { status: "renamed", name };
 }

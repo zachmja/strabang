@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import type { Config } from "./config";
 import type { StravaClient } from "./strava/client";
 import type { TokenStore } from "./store/tokenStore";
+import type { StatsStore } from "./store/statsStore";
 import type { StravaWebhookEvent } from "./strava/types";
 import { handleActivityCreate } from "./services/renamer";
 
@@ -14,6 +15,8 @@ export interface AppDeps {
   log?: (msg: string) => void;
   /** Injectable clock (ms epoch); for tests. */
   now?: () => number;
+  /** Aggregate counters; a failed increment never fails a request. */
+  stats?: StatsStore;
 }
 
 // Official Strava brand assets (hosted by Strava). Required by their Brand
@@ -134,6 +137,11 @@ export function createApp(deps: AppDeps): Express {
         expiresAt: token.expires_at,
         scope: token.scope ?? config.strava.scope,
       });
+      if (deps.stats) {
+        await deps.stats
+          .increment("totalConnects")
+          .catch((err) => log(`stats increment failed: ${(err as Error).message}`));
+      }
       res.send(
         page(
           "Connected",
@@ -168,7 +176,7 @@ export function createApp(deps: AppDeps): Express {
 
     if (event.object_type === "activity" && event.aspect_type === "create") {
       handleActivityCreate(
-        { store, strava, generate, renameAll: config.renameAll, log },
+        { store, strava, generate, renameAll: config.renameAll, log, stats: deps.stats },
         event.owner_id,
         event.object_id,
       ).catch((err) => log(`rename failed: ${(err as Error).message}`));

@@ -8,6 +8,11 @@ Connect your Strava account once. Every time you finish a run or ride, strabang
 catches the webhook event and renames the activity (e.g. _"Turned all that doubt
 into distance — no days off"_).
 
+> **Just want to use it?** A hosted instance runs at
+> **<https://strabang.backroomslabs.com>** — click *Connect with Strava* and
+> you're done. Everything below is for people who want to run or modify their
+> own copy.
+
 ## How it works
 
 ```
@@ -90,6 +95,7 @@ a few seconds.
 | `STRAVA_SCOPE` | `activity:read_all,activity:write` | OAuth scopes |
 | `STRAVA_WEBHOOK_VERIFY_TOKEN` | `strabang` | Echoed in the handshake |
 | `TOKEN_STORE_PATH` | `data/tokens.json` | Where tokens are persisted |
+| `STATS_PATH` | `data/stats.json` | Aggregate counters (total renames/connects — anonymous integers) |
 | `RENAME_ALL` | `false` | Rename every activity vs. only default titles |
 | `LYRICS_EXPLICIT` | `false` | Allow the profanity-included line banks (default is fully SFW; slurs are never generated in any mode) |
 

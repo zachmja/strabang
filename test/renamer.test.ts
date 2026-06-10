@@ -5,6 +5,7 @@ import {
   type RenamerDeps,
 } from "../src/services/renamer";
 import { MemoryTokenStore, type TokenRecord } from "../src/store/tokenStore";
+import { MemoryStatsStore } from "../src/store/statsStore";
 import type { StravaClient } from "../src/strava/client";
 
 const NOW = 1_000_000;
@@ -116,5 +117,19 @@ describe("handleActivityCreate", () => {
     const strava = makeStrava("Morning Run");
     await handleActivityCreate(deps(store, strava), 1, 99);
     expect(strava.refreshToken).toHaveBeenCalled();
+  });
+
+  it("increments the rename counter on rename, but not on skip", async () => {
+    const store = new MemoryTokenStore();
+    await store.set(makeRecord());
+    const stats = new MemoryStatsStore();
+
+    const renamed = makeStrava("Morning Run");
+    await handleActivityCreate({ ...deps(store, renamed), stats }, 1, 99);
+    expect((await stats.read()).totalRenames).toBe(1);
+
+    const skipped = makeStrava("Custom title the athlete wrote");
+    await handleActivityCreate({ ...deps(store, skipped), stats }, 1, 100);
+    expect((await stats.read()).totalRenames).toBe(1);
   });
 });
