@@ -91,6 +91,7 @@ a few seconds.
 | `STRAVA_WEBHOOK_VERIFY_TOKEN` | `strabang` | Echoed in the handshake |
 | `TOKEN_STORE_PATH` | `data/tokens.json` | Where tokens are persisted |
 | `RENAME_ALL` | `false` | Rename every activity vs. only default titles |
+| `LYRICS_EXPLICIT` | `false` | Allow the profanity-included line banks (default is fully SFW; slurs are never generated in any mode) |
 
 ## Scripts
 

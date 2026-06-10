@@ -15,7 +15,7 @@ function main(): void {
     config,
     strava,
     store,
-    generate: () => generateLyric(),
+    generate: () => generateLyric({ explicit: config.lyricsExplicit }),
   });
 
   app.listen(config.port, () => {

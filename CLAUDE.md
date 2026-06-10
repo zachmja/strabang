@@ -39,6 +39,7 @@ src/
   store/tokenStore.ts   TokenStore interface, File + Memory impls
   services/renamer.ts   token refresh + rename decision logic
   lyrics/generator.ts   original Drake-style line generator (seeded mulberry32)
+  lyrics/banks.ts       themed line data: clean + explicit tiers per theme
   scripts/manage-webhook.ts  push-subscription CLI
 test/                   Vitest; mock StravaClient via plain objects + vi.fn()
 ```
@@ -62,10 +63,14 @@ test/                   Vitest; mock StravaClient via plain objects + vi.fn()
 4. **`isDefaultTitle()` in `services/renamer.ts`**: the safety property
    "never clobber a title the athlete wrote" is the product's core promise.
    Only loosen via the explicit `RENAME_ALL` env flag.
-5. **`lyrics/generator.ts` content policy**: lines must remain *original*
-   writing, never verbatim Drake lyrics (copyright), and generation must stay
-   templated/RNG with no external/model calls (Strava API Agreement forbids
-   AI/ML use of its data; the README/PRIVACY assert we do none).
+5. **`lyrics/generator.ts` + `lyrics/banks.ts` content policy**: lines must
+   remain *original* writing, never verbatim Drake lyrics (copyright), and
+   generation must stay templated/RNG with no external/model calls at runtime
+   (Strava API Agreement forbids AI/ML use of its data; the README/PRIVACY
+   assert we do none). Two tiers: clean (default) and explicit (profanity,
+   gated behind `LYRICS_EXPLICIT`). Slurs are forbidden in both tiers, always —
+   `test/generator.test.ts` enforces the tier rules; keep those tests when
+   adding lines.
 
 ## Conventions
 

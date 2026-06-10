@@ -23,6 +23,12 @@ export interface Config {
   tokenStorePath: string;
   /** If true, rename every new activity. If false, only Strava's default titles. */
   renameAll: boolean;
+  /**
+   * If true, the generator may also draw from the explicit (profanity-allowed)
+   * line banks. Default false: safe-for-work output only. Slurs are never
+   * generated in either mode.
+   */
+  lyricsExplicit: boolean;
 }
 
 function required(name: string): string {
@@ -59,6 +65,7 @@ export function loadConfig(): Config {
     },
     tokenStorePath: process.env.TOKEN_STORE_PATH ?? "data/tokens.json",
     renameAll: process.env.RENAME_ALL === "true",
+    lyricsExplicit: process.env.LYRICS_EXPLICIT === "true",
   };
 }
 
